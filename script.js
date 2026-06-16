@@ -52,8 +52,8 @@
   function makePetalShape() {
     const shape = new THREE.Shape();
     shape.moveTo(0, 0);
-    shape.bezierCurveTo(0.5, 0.3, 0.6, 1.2, 0, 1.6);
-    shape.bezierCurveTo(-0.6, 1.2, -0.5, 0.3, 0, 0);
+    shape.bezierCurveTo(0.45, 0.3, 0.55, 1.0, 0, 1.5);
+    shape.bezierCurveTo(-0.55, 1.0, -0.45, 0.3, 0, 0);
     return shape;
   }
 
@@ -86,36 +86,61 @@
     group.add(head);
 
     // Center
-    const centerGeo = new THREE.SphereGeometry(0.35, 16, 16);
+    const centerGeo = new THREE.SphereGeometry(0.45, 16, 16);
     const centerMat = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.6 });
     const center = new THREE.Mesh(centerGeo, centerMat);
+    center.position.y = 0.05;
     head.add(center);
 
-    // Petals
+    // Petals — each wrapped in its own pivot group so X-rotation opens outward
     const petalShape = makePetalShape();
-    const petalGeo = new THREE.ExtrudeGeometry(petalShape, { depth: 0.06, bevelEnabled: false });
-    petalGeo.translate(0, 0, -0.03);
+    const petalGeo = new THREE.ExtrudeGeometry(petalShape, { depth: 0.05, bevelEnabled: false });
+    petalGeo.translate(0, 0, -0.025);
 
     const petals = [];
-    const petalCount = 8;
-    for (let i = 0; i < petalCount; i++) {
+
+    // Outer ring — opens wider (near horizontal)
+    const outerCount = 7;
+    for (let i = 0; i < outerCount; i++) {
+      const fanGroup = new THREE.Group();
+      fanGroup.rotation.y = (i / outerCount) * Math.PI * 2;
+      head.add(fanGroup);
+
       const mat = new THREE.MeshStandardMaterial({
-        color: petalColor(i * 6),
-        roughness: 0.5,
+        color: petalColor(i * 8),
+        roughness: 0.55,
         side: THREE.DoubleSide
       });
       const petal = new THREE.Mesh(petalGeo, mat);
-      const angle = (i / petalCount) * Math.PI * 2;
-      petal.userData.angle = angle;
-      petal.userData.openAngle = Math.PI / 2.1;
-      petal.position.set(0, 0, 0);
-      petal.rotation.y = angle;
-      petal.rotation.x = -0.15; // closed-ish initial
+      petal.rotation.x = 0;
+      petal.userData.ring = 'outer';
+      petal.userData.randOffset = (Math.random() - 0.5) * 0.15; // slight variation
+      fanGroup.add(petal);
       petals.push(petal);
-      head.add(petal);
     }
 
-    return { group, head, petals, stem, bloomT: 0, sway: Math.random() * Math.PI * 2 };
+    // Inner ring — stays more upright (cup shape)
+    const innerCount = 7;
+    for (let i = 0; i < innerCount; i++) {
+      const fanGroup = new THREE.Group();
+      fanGroup.rotation.y = ((i + 0.5) / innerCount) * Math.PI * 2;
+      head.add(fanGroup);
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: petalColor(i * 8 + 15),
+        roughness: 0.55,
+        side: THREE.DoubleSide
+      });
+      const petal = new THREE.Mesh(petalGeo, mat);
+      petal.scale.setScalar(0.7);
+      petal.rotation.x = 0;
+      petal.userData.ring = 'inner';
+      petal.userData.randOffset = (Math.random() - 0.5) * 0.1;
+      fanGroup.add(petal);
+      petals.push(petal);
+    }
+
+    return { group, head, petals, stem, bloomT: 0, bloomTarget: 0, sway: Math.random() * Math.PI * 2 };
   }
 
   const flowers = [];
@@ -172,8 +197,16 @@
     prevX = e.clientX; prevY = e.clientY;
   });
 
-  document.getElementById('bloom-btn').addEventListener('click', () => {
-    flowers.forEach(f => { f.bloomTarget = f.bloomTarget === 1 ? 0 : 1; });
+  const bloomBtn = document.getElementById('bloom-btn');
+  let bloomed = false;
+  bloomBtn.addEventListener('click', () => {
+    bloomed = !bloomed;
+    flowers.forEach(f => { f.bloomTarget = bloomed ? 1 : 0; });
+    if (bloomed) {
+      bloomBtn.classList.add('active');
+    } else {
+      bloomBtn.classList.remove('active');
+    }
   });
   document.getElementById('wind-btn').addEventListener('click', () => {
     windOn = !windOn;
@@ -202,7 +235,7 @@
     updateFlowerColors();
   });
 
-  flowers.forEach(f => { f.bloomTarget = 1; });
+  // Flowers start as closed buds — click 'Mekarkan' to bloom
 
   const clock = new THREE.Clock();
   function animate() {
@@ -216,16 +249,19 @@
     pivotGroup.rotation.x = currentRotX;
 
     flowers.forEach(f => {
-      const target = (f.bloomTarget !== undefined) ? f.bloomTarget : 1;
-      f.bloomT += (target - f.bloomT) * 0.04;
+      const target = (f.bloomTarget !== undefined) ? f.bloomTarget : 0;
+      f.bloomT += (target - f.bloomT) * 0.05;
 
       f.petals.forEach((petal, i) => {
-        const closedAngle = -0.15;
-        const openAngle = petal.userData.openAngle - 1.0;
-        petal.rotation.x = closedAngle + (openAngle - closedAngle) * f.bloomT;
+        const closedAngle = 0; // pointing up
+        // Outer petals open wider (~80°), inner petals less (~50°) = cup shape
+        const isOuter = petal.userData.ring === 'outer';
+        const openAngle = isOuter ? -Math.PI / 2.3 : -Math.PI / 3.5;
+        const rand = petal.userData.randOffset || 0;
+        petal.rotation.x = closedAngle + (openAngle + rand - closedAngle) * f.bloomT;
       });
 
-      const scale = 0.3 + 0.7 * f.bloomT;
+      const scale = 0.5 + 0.5 * f.bloomT;
       f.head.scale.setScalar(scale);
 
       if (windOn) {
@@ -250,4 +286,17 @@
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
   });
+
+  // Pastikan audio berjalan (mengatasi browser autoplay block)
+  const bgMusic = document.getElementById('bg-music');
+  if (bgMusic) {
+    // Coba play saat interaksi pertama
+    const playAudio = () => {
+      bgMusic.play().catch(() => {}); // Abaikan error jika masih terblokir
+      window.removeEventListener('pointerdown', playAudio);
+      window.removeEventListener('keydown', playAudio);
+    };
+    window.addEventListener('pointerdown', playAudio);
+    window.addEventListener('keydown', playAudio);
+  }
 })();

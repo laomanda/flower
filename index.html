@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Taman Bunga 3D</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="./assets/favicon.png">
@@ -20,9 +21,6 @@
       <button id="wind-btn" class="flower-btn"><i class="fa-solid fa-wind" aria-hidden="true"></i> Angin</button>
       <button id="add-btn" class="flower-btn"><i class="fa-solid fa-plus" aria-hidden="true"></i> Tambah bunga</button>
     </div>
-    <div class="flower-panel drag-hint" style="font-size: 12px; font-weight: 600; border-radius: 20px; padding: 6px 14px; pointer-events: none; white-space: nowrap;">
-      Seret untuk memutar
-    </div>
   </div>
 
   <div class="flower-panel bottom-panel">
@@ -31,6 +29,8 @@
     <span id="hue-out" style="font-size: 14px; font-weight: 600; min-width: 36px; text-align: right; color: #d81b60;">330</span>
   </div>
 </div>
+
+<audio id="bg-music" src="assets/audio/audio.mp3" loop autoplay preload="auto"></audio>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="script.js"></script>
